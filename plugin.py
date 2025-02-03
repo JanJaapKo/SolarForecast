@@ -26,7 +26,7 @@
             </options>
         </param>
         <param field="Mode6" label="Refresh interval" width="75px">
-            <description>Please note that free option only supports 6 updates per hour</description>
+            <description>Please note that free option only supports 12 updates per hour (5minutes)</description>
             <options>
                 <option label="5m" value="30"/>
                 <option label="10m" value="60" default="true"/>
@@ -93,11 +93,13 @@ class SolarForecastPlug:
         Domoticz.Debug("onCommand: DeviceId: '"+str(DeviceId)+"' Unit: '"+str(Unit)+"', Command: '"+str(Command)+"', Level: '"+str(Level)+"', Hue: '"+str(Hue)+"'")
 
     def onHeartbeat(self):
-        Domoticz.Debug("onHeartbeat called")
+        #Domoticz.Debug("onHeartbeat called")
         self.runCounter = self.runCounter - 1
         if self.runCounter <= 0:
             Domoticz.Debug("Poll unit")
             self.runCounter = int(Parameters['Mode6'])
+            data = self.getData(self.location["latitude"], self.location["longitude"], self.dec, self.az, self.kwp)
+            self.updateDevices(data)
 
     def getData(self, lat, lon, dec, az, kwp):
         baseUrl = "https://api.forecast.solar/estimate"
