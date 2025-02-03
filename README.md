@@ -33,6 +33,6 @@ git pull https://github.com/JanJaapKo/SolarForecast
 
 ## Configuration
 Fill in the following parameters (all mandatory):
-Panels declination in degrees: how 'steep' the panels are mounted on the roof:  0 (horizontal) … 90 (vertical)
-Panels azimuth in degrees: Angle of the solar panels to earth compass: -180 … 180 (-180 = north, -90 = east, 0 = south, 90 = west, 180 = north)
-Panels peak power in kiloWatt: the peak power of the installation
+- Panels declination in degrees: how 'steep' the panels are mounted on the roof:  0 (horizontal) … 90 (vertical)
+- Panels azimuth in degrees: Angle of the solar panels to earth compass: -180 … 180 (-180 = north, -90 = east, 0 = south, 90 = west, 180 = north)
+- Panels peak power in kiloWatt: the peak power of the installation
