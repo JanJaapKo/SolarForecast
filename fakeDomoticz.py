@@ -10,7 +10,7 @@
 from datetime import datetime
 Devices = dict()
 Parameters = {"Mode1": 45, "Mode2": -90, "Mode3" : 4.8, "Mode4": "Debug", "Mode5": "", "Mode6": 6, "Port": 8443, "Username": "mail@domain.com" , "Password": "aNicerp@ssword", "Version" : "0.0.0", "HomeFolder":"/home/pi/domoticz/plugins/SessyBattery/", "Name": "fakeDomoticz"}
-Settings = {"Language":"NL", 'Location':'51.45389;5.60903'}
+Settings = {"Language":"NL", 'Location':'52.0;4.0'}
 config = dict()
 
 class myUnit:
