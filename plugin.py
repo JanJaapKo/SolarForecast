@@ -113,7 +113,7 @@ class SolarForecastPlug:
             #the response is not succesfull
             Domoticz.Error("Error requesting data: " + f"{message_type} : {message_text}")
         else:
-            pass
+            Domoticz.Debug("succesfull data received")
         
     def UpdateDeviceEx(self, DeviceID, Unit, nValue, sValue, BatteryLevel=255, AlwaysUpdate=False):
             
