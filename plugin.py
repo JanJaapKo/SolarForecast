@@ -49,21 +49,23 @@ except ImportError:
 import json
 import time
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 class SolarForecastPlug:
     #define class variables
     runCounter = 0
     location = dict()
+    doneForToday = False
 
     def __init__(self):
         pass
 
     def onStart(self):
         Domoticz.Log("onStart called")
-        if Parameters['Mode4'] == 'Debug':
+        if Parameters['Mode4'] == 'Debug' or self.debug == True:
             Domoticz.Debugging(2)
             DumpConfigToLog()
+            self.debug = True
         if Parameters['Mode4'] == 'Verbose':
             Domoticz.Debugging(1)
             DumpConfigToLog()
@@ -76,15 +78,20 @@ class SolarForecastPlug:
         self.az = int(Parameters['Mode2'])
         self.kwp = float(Parameters['Mode3'])
 
-        deviceId = "SolarForecast"
-        Domoticz.Device(DeviceID=deviceId) 
-        if deviceId not in Devices or (1 not in Devices[deviceId].Units):
-            Domoticz.Unit(Name=deviceId + ' - 24h forecast', Unit=1, Type=243, Subtype=33, Switchtype=4,  Used=1, DeviceID=deviceId).Create()
-        if deviceId not in Devices or (2 not in Devices[deviceId].Units):
-            Domoticz.Unit(Name=deviceId + ' - next hour', Unit=2, Type=243, Subtype=31, Options={'Custom': '1;Wh'},  Used=1, DeviceID=deviceId).Create()
+        self.deviceId = "SolarForecast"
+        self.deviceId = Parameters['Name']
+        Domoticz.Device(DeviceID=self.deviceId) 
+        if self.deviceId not in Devices or (1 not in Devices[self.deviceId].Units):
+            #Options={"AddDBLogEntry" : "true", "DisableLogAutoUpdate" : "true"}
+            Options={"AddDBLogEntry" : "true"}
+            Domoticz.Unit(Name=self.deviceId + ' - 24h forecast', Unit=1, Type=243, Subtype=33, Switchtype=4,  Used=1, Options=Options, DeviceID=self.deviceId).Create()
+        # if self.deviceId not in Devices or (2 not in Devices[self.deviceId].Units):
+            # Domoticz.Unit(Name=self.deviceId + ' - next hour', Unit=2, Type=243, Subtype=31, Options={'Custom': '1;Wh'},  Used=1, DeviceID=self.deviceId).Create()
             
         data = self.getData(self.location["latitude"], self.location["longitude"], self.dec, self.az, self.kwp)
         self.updateDevices(data)
+        self.doneForToday = False
+        Domoticz.Debug("debug = " + str(self.debug))
 
     def onStop(self):
         Domoticz.Debug("onStop called")
@@ -98,14 +105,19 @@ class SolarForecastPlug:
         if self.runCounter <= 0:
             Domoticz.Debug("Poll unit")
             self.runCounter = int(Parameters['Mode6'])
-            data = self.getData(self.location["latitude"], self.location["longitude"], self.dec, self.az, self.kwp)
-            self.updateDevices(data)
+            if (not self.doneForToday and datetime.now().hour >= 22) or self.debug:
+                data = self.getData(self.location["latitude"], self.location["longitude"], self.dec, self.az, self.kwp)
+                # only update once per day after 22:00
+                Domoticz.Debug("time to update devices!!!!")
+                self.updateDevices(data)
+                self.doneForToday = True
 
     def getData(self, lat, lon, dec, az, kwp):
         baseUrl = "https://api.forecast.solar/estimate"
         response = requests.get(baseUrl +f"/{lat}/{lon}/{dec}/{az}/{kwp}")
+        # Domoticz.Debug("full url: "+str(response.url)) 
         Domoticz.Debug("data message: "+str(response.json()["message"]["type"]) + " "+str(response.json()["message"]["text"])) 
-        Domoticz.Debug(json.dumps(response.json(),indent=4)) #only for manual testing
+        # Domoticz.Debug(json.dumps(response.json(),indent=4)) #only for manual testing
         return response.json()
 
     def updateDevices(self, json):
@@ -116,8 +128,36 @@ class SolarForecastPlug:
             Domoticz.Error("Error requesting data: " + f"{message_type} : {message_text}")
         else:
             Domoticz.Debug("succesfull data received")
+            for dtline in json["result"]["watt_hours_period"]:
+                #only update for tomorrow
+                Domoticz.Debug("dtline = "+str(dtline))
+                dateline = datetime.strptime(dtline,'%Y-%m-%d %H:%M:%S').date()
+                if dateline > date.today():
+                    sValue = "-1;"+str(json["result"]["watt_hours_period"][dtline])+";"+str(dtline)
+                    Domoticz.Debug("sValue = "+str(sValue))
+                    self.UpdateDevice(self.deviceId, 1, 0, sValue)
         
-    def UpdateDeviceEx(self, DeviceID, Unit, nValue, sValue, BatteryLevel=255, AlwaysUpdate=False):
+
+    def UpdateDevice(self, Device, Unit, nValue, sValue, AlwaysUpdate=False, Name=""):
+        # Make sure that the Domoticz device still exists (they can be deleted) before updating it
+        if (Device in Devices and Unit in Devices[Device].Units):
+            if (Devices[Device].Units[Unit].nValue != nValue) or (Devices[Device].Units[Unit].sValue != sValue) or AlwaysUpdate:
+                    Domoticz.Debug("Updating device '"+Devices[Device].Units[Unit].Name+ "' with current sValue '"+Devices[Device].Units[Unit].sValue+"' to '" +sValue+"'")
+                    if isinstance(nValue, int):
+                        Devices[Device].Units[Unit].nValue = nValue
+                    else:
+                        Domoticz.Log("nValue supplied is not an integer. Device: "+str(Device)+ " unit "+str(Unit)+" nValue "+str(nValue))
+                        Devices[Device].Units[Unit].nValue = int(nValue)
+                    Devices[Device].Units[Unit].sValue = sValue
+                    if Name != "":
+                        Devices[Device].Units[Unit].Name = Name
+                    Devices[Device].Units[Unit].Update()
+                    
+        else:
+            Domoticz.Error("trying to update a non-existent unit "+str(Unit)+" from device "+str(Device))
+        return
+
+    def UpdateDeviceOld(self, DeviceID, Unit, nValue, sValue, BatteryLevel=255, AlwaysUpdate=False):
             
         Devices[DeviceID].Units[Unit].nValue = nValue
         Devices[DeviceID].Units[Unit].sValue = str(sValue)
