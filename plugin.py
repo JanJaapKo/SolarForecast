@@ -18,6 +18,9 @@
 		<param field="Mode3" label="Panels peak power" width="30px" required="true" default="4.8">
             <description>Installed power of the modules in kilo Watt [kW]</description>
         </param>
+		<param field="Mode5" label="API key" width="200px" required="false">
+            <description>Optional: provide your personal API key</description>
+        </param>
 		<param field="Mode4" label="Debug" width="75px">
             <options>
                 <option label="Verbose" value="Verbose"/>
@@ -77,14 +80,18 @@ class SolarForecastPlug:
         self.dec = int(Parameters['Mode1'])
         self.az = int(Parameters['Mode2'])
         self.kwp = float(Parameters['Mode3'])
+        self.APIkey = ""
+        if len(Parameters['Mode5']) > 0:
+            self.APIkey = Parameters['Mode5'] + '/'
 
         self.deviceId = "SolarForecast"
         self.deviceId = Parameters['Name']
         Domoticz.Device(DeviceID=self.deviceId) 
         if self.deviceId not in Devices or (1 not in Devices[self.deviceId].Units):
             #Options={"AddDBLogEntry" : "true", "DisableLogAutoUpdate" : "true"}
-            Options={"AddDBLogEntry" : "true"}
-            Domoticz.Unit(Name=self.deviceId + ' - 24h forecast', Unit=1, Type=243, Subtype=33, Switchtype=4,  Used=1, Options=Options, DeviceID=self.deviceId).Create()
+            #Options={"AddDBLogEntry" : "true"}
+            #Domoticz.Unit(Name=self.deviceId + ' - 24h forecast', Unit=1, Type=243, Subtype=33, Switchtype=4,  Used=1, Options=Options, DeviceID=self.deviceId).Create()
+            Domoticz.Unit(Name=self.deviceId + ' - 24h forecast', Unit=1, Type=243, Subtype=33, Switchtype=4,  Used=1, DeviceID=self.deviceId).Create()
         # if self.deviceId not in Devices or (2 not in Devices[self.deviceId].Units):
             # Domoticz.Unit(Name=self.deviceId + ' - next hour', Unit=2, Type=243, Subtype=31, Options={'Custom': '1;Wh'},  Used=1, DeviceID=self.deviceId).Create()
             
@@ -113,7 +120,7 @@ class SolarForecastPlug:
                 self.doneForToday = True
 
     def getData(self, lat, lon, dec, az, kwp):
-        baseUrl = "https://api.forecast.solar/estimate"
+        baseUrl = "https://api.forecast.solar/" + self.APIkey + "estimate"
         response = requests.get(baseUrl +f"/{lat}/{lon}/{dec}/{az}/{kwp}")
         # Domoticz.Debug("full url: "+str(response.url)) 
         Domoticz.Debug("data message: "+str(response.json()["message"]["type"]) + " "+str(response.json()["message"]["text"])) 
@@ -124,15 +131,15 @@ class SolarForecastPlug:
         message_type = json["message"]["type"]
         message_text = json["message"]["text"]
         if json["message"]["type"] != "success":
-            #the response is not succesfull
+            #the response is not successful
             Domoticz.Error("Error requesting data: " + f"{message_type} : {message_text}")
         else:
-            Domoticz.Debug("succesfull data received")
+            Domoticz.Debug("successful data received")
             for dtline in json["result"]["watt_hours_period"]:
                 #only update for tomorrow
-                Domoticz.Debug("dtline = "+str(dtline))
-                dateline = datetime.strptime(dtline,'%Y-%m-%d %H:%M:%S').date()
-                if dateline > date.today():
+                Domoticz.Debug("dtline = "+dtline)
+                dateline = datetime.fromisoformat(dtline)
+                if dateline.date() > date.today():
                     sValue = "-1;"+str(json["result"]["watt_hours_period"][dtline])+";"+str(dtline)
                     Domoticz.Debug("sValue = "+str(sValue))
                     self.UpdateDevice(self.deviceId, 1, 0, sValue)
