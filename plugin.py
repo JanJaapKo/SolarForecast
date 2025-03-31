@@ -3,7 +3,7 @@
 # Author: Jan-Jaap Kostelijk
 #
 """
-<plugin key="SolarForecast" name="Solar Forecast" author="Jan-Jaap Kostelijk" version="0.0.1" externallink="https://github.com/JanJaapKo/SolarForecast">
+<plugin key="SolarForecast" name="Solar Forecast" author="Jan-Jaap Kostelijk" version="0.1.1" externallink="https://github.com/JanJaapKo/SolarForecast">
     <description>
         Solar power forecast plugin<br/><br/>
         Fetches solar power forecast from the site solar.forecast<br/><br/><br/>
@@ -96,9 +96,9 @@ class SolarForecastPlug:
             # Domoticz.Unit(Name=self.deviceId + ' - next hour', Unit=2, Type=243, Subtype=31, Options={'Custom': '1;Wh'},  Used=1, DeviceID=self.deviceId).Create()
             
         data = self.getData(self.location["latitude"], self.location["longitude"], self.dec, self.az, self.kwp)
-        self.updateDevices(data)
+        if data:
+            self.updateDevices(data)
         self.doneForToday = False
-        Domoticz.Debug("debug = " + str(self.debug))
 
     def onStop(self):
         Domoticz.Debug("onStop called")
@@ -110,20 +110,25 @@ class SolarForecastPlug:
         #Domoticz.Debug("onHeartbeat called")
         self.runCounter = self.runCounter - 1
         if self.runCounter <= 0:
-            Domoticz.Debug("Poll unit")
+            # Domoticz.Debug("Poll unit")
             self.runCounter = int(Parameters['Mode6'])
             if (not self.doneForToday and datetime.now().hour >= 22) or self.debug:
                 data = self.getData(self.location["latitude"], self.location["longitude"], self.dec, self.az, self.kwp)
                 # only update once per day after 22:00
                 Domoticz.Debug("time to update devices!!!!")
-                self.updateDevices(data)
-                self.doneForToday = True
+                if data:
+                    self.updateDevices(data)
+                    self.doneForToday = True
 
     def getData(self, lat, lon, dec, az, kwp):
         baseUrl = "https://api.forecast.solar/" + self.APIkey + "estimate"
         response = requests.get(baseUrl +f"/{lat}/{lon}/{dec}/{az}/{kwp}")
-        # Domoticz.Debug("full url: "+str(response.url)) 
-        Domoticz.Debug("data message: "+str(response.json()["message"]["type"]) + " "+str(response.json()["message"]["text"])) 
+        if len(response.json())>0:
+            Domoticz.Debug("full url: "+str(response.url)+"; data message: "+str(response.json()["message"]["type"]) + " "+str(response.json()["message"]["text"]))
+            # Domoticz.Debug("response headers: "+str(response.headers)+"; ")
+        else:
+            Domoticz.Error("empty reply from API")
+            return False
         # Domoticz.Debug(json.dumps(response.json(),indent=4)) #only for manual testing
         return response.json()
 
@@ -140,7 +145,14 @@ class SolarForecastPlug:
                 Domoticz.Debug("dtline = "+dtline)
                 dateline = datetime.fromisoformat(dtline)
                 if dateline.date() > date.today():
-                    sValue = "-1;"+str(json["result"]["watt_hours_period"][dtline])+";"+str(dtline)
+                    sValue = str(json["result"]["watts"][dtline])+";"+str(json["result"]["watt_hours_period"][dtline])+";"+str(dtline)
+                    #sValue = "-1;"+str(json["result"]["watt_hours_period"][dtline])+";"+str(dtline)
+                    Domoticz.Debug("sValue = "+str(sValue))
+                    self.UpdateDevice(self.deviceId, 1, 0, sValue)
+            for dtline in json["result"]["watt_hours_day"]:
+                dateline = datetime.fromisoformat(dtline)
+                if dateline.date() > date.today():
+                    sValue = "-1;"+str(json["result"]["watt_hours_day"][dtline])+";"+str(dtline)
                     Domoticz.Debug("sValue = "+str(sValue))
                     self.UpdateDevice(self.deviceId, 1, 0, sValue)
         
