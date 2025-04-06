@@ -3,7 +3,7 @@
 # Author: Jan-Jaap Kostelijk
 #
 """
-<plugin key="SolarForecast" name="Solar Forecast" author="Jan-Jaap Kostelijk" version="0.1.1" externallink="https://github.com/JanJaapKo/SolarForecast">
+<plugin key="SolarForecast" name="Solar Forecast" author="Jan-Jaap Kostelijk" version="0.1.2" externallink="https://github.com/JanJaapKo/SolarForecast">
     <description>
         Solar power forecast plugin<br/><br/>
         Fetches solar power forecast from the site solar.forecast<br/><br/><br/>
@@ -59,6 +59,7 @@ class SolarForecastPlug:
     runCounter = 0
     location = dict()
     doneForToday = False
+    debug = False
 
     def __init__(self):
         pass
