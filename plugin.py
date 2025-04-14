@@ -3,7 +3,7 @@
 # Author: Jan-Jaap Kostelijk
 #
 """
-<plugin key="SolarForecast" name="Solar Forecast" author="Jan-Jaap Kostelijk" version="0.1.2" externallink="https://github.com/JanJaapKo/SolarForecast">
+<plugin key="SolarForecast" name="Solar Forecast" author="Jan-Jaap Kostelijk" version="0.1.3" externallink="https://github.com/JanJaapKo/SolarForecast">
     <description>
         Solar power forecast plugin<br/><br/>
         Fetches solar power forecast from the site solar.forecast<br/><br/><br/>
@@ -113,10 +113,12 @@ class SolarForecastPlug:
         if self.runCounter <= 0:
             # Domoticz.Debug("Poll unit")
             self.runCounter = int(Parameters['Mode6'])
-            if (not self.doneForToday and datetime.now().hour >= 22) or self.debug:
+            #if (not self.doneForToday and datetime.now().hour >= 22) or self.debug:
+            if (datetime.now().hour >= 22) or self.debug:
                 data = self.getData(self.location["latitude"], self.location["longitude"], self.dec, self.az, self.kwp)
                 # only update once per day after 22:00
                 Domoticz.Debug("time to update devices!!!!")
+                self.queryFromTo(self.deviceId, 1)
                 if data:
                     self.updateDevices(data)
                     self.doneForToday = True
@@ -143,12 +145,12 @@ class SolarForecastPlug:
             Domoticz.Debug("successful data received")
             for dtline in json["result"]["watt_hours_period"]:
                 #only update for tomorrow
-                Domoticz.Debug("dtline = "+dtline)
+                #Domoticz.Debug("dtline = "+dtline)
                 dateline = datetime.fromisoformat(dtline)
                 if dateline.date() > date.today():
                     sValue = str(json["result"]["watts"][dtline])+";"+str(json["result"]["watt_hours_period"][dtline])+";"+str(dtline)
                     #sValue = "-1;"+str(json["result"]["watt_hours_period"][dtline])+";"+str(dtline)
-                    Domoticz.Debug("sValue = "+str(sValue))
+                    #Domoticz.Debug("sValue = "+str(sValue))
                     self.UpdateDevice(self.deviceId, 1, 0, sValue)
             for dtline in json["result"]["watt_hours_day"]:
                 dateline = datetime.fromisoformat(dtline)
@@ -157,6 +159,9 @@ class SolarForecastPlug:
                     Domoticz.Debug("sValue = "+str(sValue))
                     self.UpdateDevice(self.deviceId, 1, 0, sValue)
         
+    def queryFromTo(self, Device, Unit):
+        # see for which dataes a device holds data
+        Domoticz.Debug("the IDX shoud be "+ str(Devices[Device].Units[Unit].ID) + " for device " + str(Devices[Device].Units[Unit].Name))
 
     def UpdateDevice(self, Device, Unit, nValue, sValue, AlwaysUpdate=False, Name=""):
         # Make sure that the Domoticz device still exists (they can be deleted) before updating it
@@ -176,21 +181,6 @@ class SolarForecastPlug:
         else:
             Domoticz.Error("trying to update a non-existent unit "+str(Unit)+" from device "+str(Device))
         return
-
-    def UpdateDeviceOld(self, DeviceID, Unit, nValue, sValue, BatteryLevel=255, AlwaysUpdate=False):
-            
-        Devices[DeviceID].Units[Unit].nValue = nValue
-        Devices[DeviceID].Units[Unit].sValue = str(sValue)
-        Devices[DeviceID].Units[Unit].LastLevel = int(sValue)
-        Devices[DeviceID].Units[Unit].Update(Log=True)
-
-        Domoticz.Debug("Update %s - %s: nValue %s - sValue %s - BatteryLevel %s" % (
-            DeviceID,
-            Unit,
-            nValue,
-            sValue,
-            BatteryLevel
-        ))
         
 global _plugin
 _plugin = SolarForecastPlug()
@@ -217,9 +207,9 @@ def DumpConfigToLog():
     for x in Parameters:
         if Parameters[x] != "":
             Domoticz.Debug( "Parameter '" + x + "':'" + str(Parameters[x]) + "'")
-    # for x in Settings:
-        # if Settings[x] != "":
-            # Domoticz.Debug( "Setting '" + x + "':'" + str(Settings[x]) + "'")
+    for x in Settings:
+        if Settings[x] != "":
+            Domoticz.Debug( "Setting '" + x + "':'" + str(Settings[x]) + "'")
     # Configurations = getConfigItem()
     # Domoticz.Debug("Configuration count: " + str(len(Configurations)))
     # for x in Configurations:
