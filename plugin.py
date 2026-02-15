@@ -151,6 +151,7 @@ class SolarForecastPlug:
                     sValue = str(json["result"]["watts"][dtline])+";"+str(json["result"]["watt_hours_period"][dtline])+";"+str(dtline)
                     #sValue = "-1;"+str(json["result"]["watt_hours_period"][dtline])+";"+str(dtline)
                     #Domoticz.Debug("sValue = "+str(sValue))
+                    Domoticz.Debug("Updating device '"+Devices[self.deviceId].Units[1].Name+ "' with current sValue '"+Devices[self.deviceId].Units[1].sValue+"' to '" +sValue+"'")
                     self.UpdateDevice(self.deviceId, 1, 0, sValue)
             for dtline in json["result"]["watt_hours_day"]:
                 dateline = datetime.fromisoformat(dtline)
